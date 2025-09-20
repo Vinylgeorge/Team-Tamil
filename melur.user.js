@@ -4,13 +4,13 @@
 // @match       https://worker.mturk.com/projects/*/tasks/*
 // @grant       GM_xmlhttpRequest
 // @version     1.0
-// @updateURL    https://raw.githubusercontent.com/Vinylgeorge/Team-perundurai/refs/heads/main/Mturk_tasks.user.js
-// @downloadURL  https://raw.githubusercontent.com/Vinylgeorge/Team-perundurai/refs/heads/main/Mturk_tasks.user.js
+// @updateURL    https://raw.githubusercontent.com/Vinylgeorge/Team-Tamil/refs/heads/main/melur.user.js
+// @downloadURL  https://raw.githubusercontent.com/Vinylgeorge/Team-Tamil/refs/heads/main/melur.user.js
 // ==/UserScript==
 
 (function () {
   'use strict';
-
+   //av.gm.cm 
   const BIN_ID = "68ce9192d0ea881f40842a58";   // your JSONBin Bin ID
   const API_KEY = "$2a$10$vfIYx4yJrkl1I5aWzNu7RuobcfJQhfZuW2d/lltml1q1C5u4Y4vJy";
   const BIN_URL = `https://api.jsonbin.io/v3/b/${BIN_ID}`;
