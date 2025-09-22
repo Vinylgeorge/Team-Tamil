@@ -3,7 +3,7 @@
 // @namespace   Violentmonkey Scripts
 // @match       https://worker.mturk.com/projects/*/tasks/*
 // @grant       GM_xmlhttpRequest
-// @version     1.0
+// @version     1.1
 // @updateURL    https://raw.githubusercontent.com/Vinylgeorge/Team-Tamil/refs/heads/main/melur.user.js
 // @downloadURL  https://raw.githubusercontent.com/Vinylgeorge/Team-Tamil/refs/heads/main/melur.user.js
 // ==/UserScript==
@@ -11,9 +11,9 @@
 (function () {
   'use strict';
    //av.gm.cm 
-  const BIN_ID = "68ce9192d0ea881f40842a58";   // your JSONBin Bin ID
-  const API_KEY = "$2a$10$vfIYx4yJrkl1I5aWzNu7RuobcfJQhfZuW2d/lltml1q1C5u4Y4vJy";
-  const BIN_URL = `https://api.jsonbin.io/v3/b/${BIN_ID}`;
+  const BIN_ID = "68d16c99ae596e708ff764ba";   // LeinaDingle
+  const API_KEY = "$2a$10$mBPVbEUTcZQwpooUidtrpeaEoT37gn299trwzoFEH.K4KrbtnjZey";
+   const BIN_URL = `https://api.jsonbin.io/v3/b/${BIN_ID}`;
 
   const BACKGROUND_CLEANUP_MS = 5 * 60 * 1000; // 5 minutes
   const SAVE_INTERVAL_MS = 15 * 1000; // 15 seconds
@@ -170,42 +170,7 @@
     }
   }
 
-  function handleCaptchaDetected() {
-    try {
-      if (!captchaPopup || captchaPopup.closed) {
-        captchaPopup = window.open('https://worker.mturk.com/tasks', 'mturkCaptchaPopup', 'width=900,height=700,top=100,left=100');
-        console.log('[MTurk→JSONBin] 🔔 CAPTCHA detected — opened popup to /tasks');
-      } else {
-        try { captchaPopup.focus(); } catch (e) {}
-      }
-
-      // Close after 5 seconds
-      setTimeout(() => {
-        try {
-          if (captchaPopup && !captchaPopup.closed) {
-            captchaPopup.close();
-            console.log('[MTurk→JSONBin] 🔔 CAPTCHA popup closed after 5s');
-          }
-        } catch (e) { /* ignore */ }
-        captchaPopup = null;
-      }, 5000);
-    } catch (e) {
-      console.error('[MTurk→JSONBin] ❌ CAPTCHA handler error:', e);
-    }
-  }
-
-  function checkCaptchaOnPage() {
-    // Detect obvious captcha patterns
-    try {
-      const bodyText = document.body?.innerText?.toLowerCase() || '';
-      const hasCaptchaForm = !!document.querySelector("form[action*='captcha']");
-      const mentionsCaptcha = bodyText.includes('captcha') || bodyText.includes('please complete the security check');
-      if (hasCaptchaForm || mentionsCaptcha) {
-        handleCaptchaDetected();
-      }
-    } catch (e) { /* ignore */ }
-  }
-
+ 
   async function runOnce() {
     // Save current HIT
     const hit = scrapeHitInfo();
