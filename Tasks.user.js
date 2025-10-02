@@ -4,8 +4,8 @@
 // @match       https://worker.mturk.com/projects/*/tasks/*
 // @grant       none
 // @version     1.1
-// @updateURL    https://github.com/Vinylgeorge/Team-Baby/raw/refs/heads/main/Tasks.user.js
-// @downloadURL  https://github.com/Vinylgeorge/Team-Baby/raw/refs/heads/main/Tasks.user.js
+// @updateURL    https://github.com/Vinylgeorge/Team-Tamil/raw/refs/heads/main/Tasks.user.js
+// @downloadURL  https://github.com/Vinylgeorge/Team-Tamil/raw/refs/heads/main/Tasks.user.js
 // ==/UserScript==
 
 (function () {
