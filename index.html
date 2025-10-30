@@ -1,31 +1,139 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
+  <meta charset="UTF-8" />
   <title>🔥 MTurk Accepted HITs – Live + Support</title>
-
   <style>
-    body{font-family:"Segoe UI",Roboto,sans-serif;background:#f8fafc;color:#111827;padding:24px;}
-    h1{text-align:center;color:#0f62fe;margin-bottom:10px;}
-    #onlineCount{text-align:center;color:#6b7280;margin-bottom:12px;font-size:14px;}
-    #enableNotif{display:block;margin:0 auto 20px;padding:6px 10px;border-radius:999px;border:1px solid #d1d5db;background:#fff;cursor:pointer;font-size:12px;}
-    table{width:100%;border-collapse:collapse;background:white;box-shadow:0 2px 6px rgba(0,0,0,0.1);border-radius:8px;overflow:hidden;}
-    th,td{padding:10px 12px;border-bottom:1px solid #e5e7eb;text-align:left;}
-    th{background:#0f62fe;color:white;font-weight:600;}
-    tr:hover{background:#f1f5f9;}
-    .footer{text-align:center;margin-top:12px;color:#6b7280;font-size:13px;}
-    #ticketBtn{display:block;margin:20px auto;padding:8px 14px;background:#2563eb;color:#fff;border:none;border-radius:8px;cursor:pointer;}
-    #ticketModal{display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.6);align-items:center;justify-content:center;z-index:9999;}
-    .modal-content{background:#fff;border-radius:10px;padding:20px;width:90%;max-width:400px;}
-    .modal-content h2{margin-top:0;text-align:center;color:#0f62fe;}
-    .modal-content input,.modal-content textarea{width:100%;margin-bottom:10px;padding:8px;border:1px solid #d1d5db;border-radius:6px;}
-    .modal-content label{font-size:13px;color:#374151;}
-    .close{float:right;font-size:20px;cursor:pointer;}
-    #recordAudio{background:#0f766e;color:white;border:none;border-radius:6px;padding:6px 10px;cursor:pointer;}
+    body {
+      font-family: "Segoe UI", Roboto, sans-serif;
+      background: #f8fafc;
+      color: #111827;
+      padding: 24px;
+    }
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      margin-bottom: 16px;
+    }
+    h1 {
+      color: #0f62fe;
+      margin: 0;
+      font-size: 26px;
+      flex: 1;
+    }
+    #ticketBtn {
+      background: #dc2626;
+      color: #000;
+      font-weight: 700;
+      border: none;
+      border-radius: 8px;
+      padding: 10px 16px;
+      cursor: pointer;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
+      transition: transform 0.1s ease-in-out;
+    }
+    #ticketBtn:hover { transform: scale(1.05); }
+
+    #onlineCount {
+      text-align: center;
+      color: #6b7280;
+      margin-bottom: 12px;
+      font-size: 14px;
+    }
+    #enableNotif {
+      display: block;
+      margin: 0 auto 20px auto;
+      padding: 6px 10px;
+      border-radius: 999px;
+      border: 1px solid #d1d5db;
+      background: #ffffff;
+      cursor: pointer;
+      font-size: 12px;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      background: white;
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+      border-radius: 8px;
+      overflow: hidden;
+    }
+    th, td {
+      padding: 10px 12px;
+      border-bottom: 1px solid #e5e7eb;
+      text-align: left;
+    }
+    th {
+      background: #0f62fe;
+      color: white;
+      font-weight: 600;
+    }
+    tr:hover { background: #f1f5f9; }
+
+    .footer {
+      text-align: center;
+      margin-top: 12px;
+      color: #6b7280;
+      font-size: 13px;
+    }
+
+    /* --- Modal --- */
+    #ticketModal {
+      display: none;
+      position: fixed;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      background: rgba(0, 0, 0, 0.6);
+      align-items: center; justify-content: center;
+      z-index: 9999;
+    }
+    .modal-content {
+      background: #fff;
+      border-radius: 10px;
+      padding: 20px;
+      width: 90%;
+      max-width: 400px;
+    }
+    .modal-content h2 {
+      margin-top: 0;
+      text-align: center;
+      color: #0f62fe;
+    }
+    .modal-content input,
+    .modal-content textarea {
+      width: 100%;
+      margin-bottom: 10px;
+      padding: 8px;
+      border: 1px solid #d1d5db;
+      border-radius: 6px;
+    }
+    .modal-content label {
+      font-size: 13px;
+      color: #374151;
+    }
+    .close {
+      float: right;
+      font-size: 20px;
+      cursor: pointer;
+    }
+    #recordAudio {
+      background: #0f766e;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      padding: 6px 10px;
+      cursor: pointer;
+    }
   </style>
 </head>
 <body>
-  <h1>🔥 MTurk Accepted HITs – Live Monitor</h1>
+  <header>
+    <h1>🔥 MTurk Accepted HITs – Live Monitor</h1>
+    <button id="ticketBtn">📝 Raise Support Ticket</button>
+  </header>
+
   <span id="onlineCount">0 online</span>
   <button id="enableNotif">Enable notifications</button>
 
@@ -41,10 +149,8 @@
     <tbody id="hits-body"></tbody>
   </table>
 
-  <button id="ticketBtn">📝 Raise Support Ticket</button>
-
   <div class="footer">
-    Real-time HIT monitor • Sound + desktop notifications when new HIT arrives
+    Real-time HIT monitor • Sound + Desktop notifications when new HIT arrives
   </div>
 
   <!-- Ticket Modal -->
@@ -68,7 +174,9 @@
       <button id="recordAudio">🎙️ Record Audio</button>
       <p id="recordStatus" style="font-size:12px;color:#6b7280;margin-top:4px;">(optional)</p>
 
-      <button id="submitTicket" style="background:#2563eb;color:white;border:none;border-radius:6px;padding:8px 12px;margin-top:10px;width:100%;">Submit</button>
+      <button id="submitTicket" style="background:#2563eb;color:white;border:none;border-radius:6px;padding:8px 12px;margin-top:10px;width:100%;">
+        Submit
+      </button>
     </div>
   </div>
 
@@ -79,7 +187,6 @@
     } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
     import { getStorage, ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js";
 
-    // 🔧 Firebase Config
     const firebaseConfig = {
       apiKey: "AIzaSyDIo2TPyxFs1BP_AaeQ6mMvqKXgQorQsS0",
       authDomain: "taskmonitor-7bc94.firebaseapp.com",
@@ -92,13 +199,14 @@
     const db = getFirestore(app);
     const storage = getStorage(app);
 
-    // ============ LIVE HITS ==============
-    const tableBody = document.querySelector("#hits-body");
-    const soundUrl = "https://www.allbyjohn.com/sounds/mturkscanner/lessthan15Short.mp3";
-    const playSound = () => { const a=new Audio(soundUrl);a.volume=0.7;a.play().catch(()=>{}); };
+    // === Live HIT Monitor ===
+    const tableBody=document.querySelector("#hits-body");
+    const soundUrl="https://www.allbyjohn.com/sounds/mturkscanner/lessthan15Short.mp3";
+    const playSound=()=>{const a=new Audio(soundUrl);a.volume=0.7;a.play().catch(()=>{});};
+    const knownIds=new Set();
 
-    function renderTable(hits) {
-      tableBody.innerHTML = "";
+    function renderTable(hits){
+      tableBody.innerHTML="";
       hits.sort((a,b)=>new Date(b.acceptedAt)-new Date(a.acceptedAt));
       for(const h of hits){
         const tr=document.createElement("tr");
@@ -111,11 +219,9 @@
       }
     }
 
-    const knownIds=new Set();
     setTimeout(()=>{
-      console.log("🔥 Listening for live HITs...");
       onSnapshot(collection(db,"hits"),(snapshot)=>{
-        const hits=[];const newIds=new Set();
+        const hits=[],newIds=new Set();
         snapshot.forEach(docSnap=>{
           const d=docSnap.data();hits.push(d);
           if(d.assignmentId)newIds.add(d.assignmentId);
@@ -127,7 +233,7 @@
       });
     },1500);
 
-    // ============ PRESENCE COUNTER ============
+    // === Presence Counter ===
     const onlineEl=document.querySelector("#onlineCount");
     const presenceCol=collection(db,"rooms/index/presence");
     const sid=crypto.randomUUID?.()??Math.random().toString(36).slice(2);
@@ -145,7 +251,7 @@
       onlineEl.textContent=`${count} online`;
     });
 
-    // ============ NOTIFICATIONS ============
+    // === Notifications ===
     const notifBtn=document.getElementById("enableNotif");
     notifBtn.addEventListener("click",async()=>{
       if("Notification" in window)await Notification.requestPermission();
@@ -153,13 +259,13 @@
     });
     if("Notification" in window && Notification.permission==="granted")notifBtn.style.display="none";
 
-    // ============ SUPPORT TICKET ============
+    // === Ticket Modal ===
     const modal=document.getElementById("ticketModal");
     document.getElementById("ticketBtn").onclick=()=>modal.style.display="flex";
     document.querySelector(".close").onclick=()=>modal.style.display="none";
     window.onclick=e=>{if(e.target===modal)modal.style.display="none";};
 
-    // --- Audio Recorder ---
+    // === Audio Recorder ===
     let recorder,chunks=[],audioBlob=null;
     const recBtn=document.getElementById("recordAudio"),recStat=document.getElementById("recordStatus");
     recBtn.onclick=async()=>{
@@ -171,7 +277,8 @@
           audioBlob=new Blob(chunks,{type:"audio/webm"});chunks=[];
           recStat.textContent="✅ Recorded successfully – will upload";
         };
-        recorder.start();recStat.textContent="🎙️ Recording… click again to stop";
+        recorder.start();
+        recStat.textContent="🎙️ Recording… click again to stop";
       }else{recorder.stop();}
     };
 
