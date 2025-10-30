@@ -10,10 +10,27 @@
     color: #111827;
     padding: 24px;
   }
-  h1 {
-    text-align: center;
-    color: #0f62fe;
+  header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
     margin-bottom: 10px;
+  }
+  h1 {
+    color: #0f62fe;
+    margin: 0;
+  }
+  #raiseTicketBtn {
+    background: #dc2626;
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    padding: 8px 14px;
+    font-weight: bold;
+    cursor: pointer;
+  }
+  #raiseTicketBtn:hover {
+    background: #b91c1c;
   }
   #onlineCount {
     display: block;
@@ -59,10 +76,65 @@
     color: #6b7280;
     font-size: 13px;
   }
+
+  /* Ticket Modal */
+  #ticketModal {
+    display: none;
+    position: fixed;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    background: rgba(0,0,0,0.7);
+    align-items: center;
+    justify-content: center;
+    z-index: 9999;
+  }
+  .modal-content {
+    background: white;
+    border-radius: 10px;
+    padding: 20px;
+    width: 90%;
+    max-width: 420px;
+  }
+  .modal-content h2 {
+    margin-top: 0;
+    text-align: center;
+    color: #dc2626;
+  }
+  input, textarea {
+    width: 100%;
+    margin: 6px 0;
+    padding: 8px;
+    border: 1px solid #d1d5db;
+    border-radius: 6px;
+  }
+  button.submit {
+    background: #2563eb;
+    color: #fff;
+    border: none;
+    padding: 8px 12px;
+    border-radius: 6px;
+    cursor: pointer;
+    width: 100%;
+  }
+  button.submit:hover { background: #1e40af; }
+  button.close {
+    background: #111827;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    padding: 6px 10px;
+    margin-top: 10px;
+    cursor: pointer;
+    width: 100%;
+  }
 </style>
 </head>
 <body>
-  <h1>🔥 MTurk Accepted HITs (Live Monitor)</h1>
+  <header>
+    <h1>🔥 MTurk Accepted HITs (Live Monitor)</h1>
+    <button id="raiseTicketBtn" onclick="openTicketModal()">🎫 Raise Support Ticket</button>
+  </header>
+
   <span id="onlineCount">0 online</span>
   <button id="enableNotif">Enable notifications</button>
 
@@ -84,11 +156,30 @@
     Real-time updates • Plays sound & shows desktop notifications when new HIT arrives
   </div>
 
+  <!-- Ticket Modal -->
+  <div id="ticketModal">
+    <div class="modal-content">
+      <h2>🎫 Raise Support Ticket</h2>
+      <input type="text" id="ticketUserId" placeholder="Enter your User ID" required>
+      <input type="text" id="ticketSubject" placeholder="Issue Title" required>
+      <textarea id="ticketDesc" rows="3" placeholder="Describe your issue..."></textarea>
+      <label>Attach Screenshot(s):</label>
+      <input type="file" id="ticketFile" multiple accept="image/*">
+      <label>Optional Audio Recording:</label>
+      <input type="file" id="ticketAudio" accept="audio/*">
+      <button class="submit" id="submitTicket">Submit Ticket</button>
+      <button class="close" onclick="closeTicketModal()">Close</button>
+    </div>
+  </div>
+
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
     import {
-      getFirestore, collection, onSnapshot, doc, setDoc, deleteDoc, serverTimestamp
+      getFirestore, collection, onSnapshot, doc, setDoc, deleteDoc, serverTimestamp, addDoc
     } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+    import {
+      getStorage, ref, uploadBytes, getDownloadURL
+    } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js";
 
     // --- Firebase Config ---
     const firebaseConfig = {
@@ -99,9 +190,9 @@
       messagingSenderId: "294318327155",
       appId: "1:294318327155:web:e0fd12d1afac85f0bbb106"
     };
-
     const app = initializeApp(firebaseConfig);
     const db = getFirestore(app);
+    const storage = getStorage(app);
 
     // ----------------------------
     // Presence (Firestore-only)
@@ -169,20 +260,16 @@
     }
 
     // ----------------------------
-    // 🔔 Desktop Notifications
+    // Desktop Notifications
     // ----------------------------
     const notifBtn = document.getElementById("enableNotif");
-
     function updateNotifButton() {
       if (!("Notification" in window)) {
-        notifBtn.style.display = "none";
-        return;
+        notifBtn.style.display = "none"; return;
       }
       notifBtn.style.display = Notification.permission === "granted" ? "none" : "inline-block";
     }
-
     notifBtn.addEventListener("click", async () => {
-      if (!("Notification" in window)) return;
       try { await Notification.requestPermission(); } catch {}
       updateNotifButton();
     });
@@ -196,12 +283,7 @@
 
       const title = `New HIT • ${h.requester || "Requester"}`;
       const body  = `${h.title || "Untitled"}\nReward: $${h.reward || 0} • ${h.user || h.workerId || ""}`;
-      const n = new Notification(title, {
-        body,
-        tag: h.assignmentId,
-        renotify: false,
-        silent: true
-      });
+      const n = new Notification(title, { body, tag: h.assignmentId, renotify: false, silent: true });
       n.onclick = () => { window.focus(); try { n.close(); } catch {} };
       notifiedIds.add(h.assignmentId);
       setTimeout(() => notifiedIds.delete(h.assignmentId), 120_000);
@@ -212,10 +294,7 @@
     // Real-time Firestore updates
     // ----------------------------
     onSnapshot(collection(db, "hits"), (snapshot) => {
-      const hits = [];
-      const newIds = new Set();
-      const hitsById = new Map();
-
+      const hits = [], newIds = new Set(), hitsById = new Map();
       snapshot.forEach(docSnap => {
         const data = docSnap.data();
         hits.push(data);
@@ -224,8 +303,6 @@
           hitsById.set(data.assignmentId, data);
         }
       });
-
-      // detect and alert new HITs
       if (knownIds.size > 0) {
         const added = Array.from(newIds).filter(id => !knownIds.has(id));
         if (added.length > 0) {
@@ -236,10 +313,53 @@
           }
         }
       }
-
       knownIds = newIds;
       renderTable(hits);
-      console.log("✅ Live update:", hits.length, "active HIT(s)");
+    });
+
+    // ----------------------------
+    // Ticket submission logic
+    // ----------------------------
+    window.openTicketModal = () => document.getElementById("ticketModal").style.display = "flex";
+    window.closeTicketModal = () => document.getElementById("ticketModal").style.display = "none";
+
+    document.getElementById("submitTicket").addEventListener("click", async () => {
+      const userId = document.getElementById("ticketUserId").value.trim();
+      const subject = document.getElementById("ticketSubject").value.trim();
+      const desc = document.getElementById("ticketDesc").value.trim();
+      const fileInput = document.getElementById("ticketFile");
+      const audioInput = document.getElementById("ticketAudio");
+
+      if (!userId || !subject) return alert("Please enter your User ID and a short issue title.");
+
+      const attachments = [];
+      for (const file of fileInput.files) {
+        const storageRef = ref(storage, `support_attachments/${Date.now()}_${file.name}`);
+        await uploadBytes(storageRef, file);
+        attachments.push(await getDownloadURL(storageRef));
+      }
+
+      let audioUrl = "";
+      if (audioInput.files.length) {
+        const audioRef = ref(storage, `support_audio/${Date.now()}_${audioInput.files[0].name}`);
+        await uploadBytes(audioRef, audioInput.files[0]);
+        audioUrl = await getDownloadURL(audioRef);
+      }
+
+      await addDoc(collection(db, "support_tickets"), {
+        userId, subject, description: desc,
+        attachments, audioUrl,
+        status: "open",
+        createdAt: serverTimestamp()
+      });
+
+      alert("✅ Ticket submitted successfully!");
+      document.getElementById("ticketModal").style.display = "none";
+      document.getElementById("ticketUserId").value = "";
+      document.getElementById("ticketSubject").value = "";
+      document.getElementById("ticketDesc").value = "";
+      document.getElementById("ticketFile").value = "";
+      document.getElementById("ticketAudio").value = "";
     });
   </script>
 </body>
