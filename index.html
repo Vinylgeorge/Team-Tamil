@@ -2,10 +2,10 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>🔥 MTurk Accepted HITs – Live</title>
+  <title>🔥 MTurk Accepted HITs – Live + Support</title>
 
   <style>
-    body {font-family:"Segoe UI",Roboto,sans-serif;background:#f8fafc;color:#111827;padding:24px;}
+    body{font-family:"Segoe UI",Roboto,sans-serif;background:#f8fafc;color:#111827;padding:24px;}
     h1{text-align:center;color:#0f62fe;margin-bottom:10px;}
     #onlineCount{text-align:center;color:#6b7280;margin-bottom:12px;font-size:14px;}
     #enableNotif{display:block;margin:0 auto 20px;padding:6px 10px;border-radius:999px;border:1px solid #d1d5db;background:#fff;cursor:pointer;font-size:12px;}
@@ -25,7 +25,7 @@
   </style>
 </head>
 <body>
-  <h1>🔥 MTurk Accepted HITs (Live Monitor)</h1>
+  <h1>🔥 MTurk Accepted HITs – Live Monitor</h1>
   <span id="onlineCount">0 online</span>
   <button id="enableNotif">Enable notifications</button>
 
@@ -42,7 +42,10 @@
   </table>
 
   <button id="ticketBtn">📝 Raise Support Ticket</button>
-  <div class="footer">Real-time updates • Sound + desktop notifications when new HIT arrives</div>
+
+  <div class="footer">
+    Real-time HIT monitor • Sound + desktop notifications when new HIT arrives
+  </div>
 
   <!-- Ticket Modal -->
   <div id="ticketModal">
@@ -71,10 +74,12 @@
 
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-    import { getFirestore, collection, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+    import {
+      getFirestore, collection, onSnapshot, addDoc, serverTimestamp, doc, setDoc, deleteDoc
+    } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
     import { getStorage, ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js";
 
-    // Firebase config (same as your monitor)
+    // 🔧 Firebase Config
     const firebaseConfig = {
       apiKey: "AIzaSyDIo2TPyxFs1BP_AaeQ6mMvqKXgQorQsS0",
       authDomain: "taskmonitor-7bc94.firebaseapp.com",
@@ -83,22 +88,82 @@
       messagingSenderId: "294318327155",
       appId: "1:294318327155:web:e0fd12d1afac85f0bbb106"
     };
-
     const app = initializeApp(firebaseConfig);
     const db = getFirestore(app);
     const storage = getStorage(app);
 
-    // --- Modal open/close ---
-    const modal = document.getElementById("ticketModal");
-    document.getElementById("ticketBtn").onclick = () => modal.style.display = "flex";
-    document.querySelector(".close").onclick = () => modal.style.display = "none";
-    window.onclick = e => { if (e.target === modal) modal.style.display = "none"; };
+    // ============ LIVE HITS ==============
+    const tableBody = document.querySelector("#hits-body");
+    const soundUrl = "https://www.allbyjohn.com/sounds/mturkscanner/lessthan15Short.mp3";
+    const playSound = () => { const a=new Audio(soundUrl);a.volume=0.7;a.play().catch(()=>{}); };
 
-    // --- Audio recording ---
-    let recorder, chunks = [], audioBlob=null;
-    const recBtn=document.getElementById("recordAudio"), recStat=document.getElementById("recordStatus");
-    recBtn.onclick = async ()=>{
-      if(!recorder || recorder.state==="inactive"){
+    function renderTable(hits) {
+      tableBody.innerHTML = "";
+      hits.sort((a,b)=>new Date(b.acceptedAt)-new Date(a.acceptedAt));
+      for(const h of hits){
+        const tr=document.createElement("tr");
+        tr.innerHTML=`
+          <td>${h.requester||"-"}</td>
+          <td>${h.title||"-"}</td>
+          <td>${h.reward||"0.00"}</td>
+          <td>${h.acceptedAt?new Date(h.acceptedAt).toLocaleString():"-"}</td>`;
+        tableBody.appendChild(tr);
+      }
+    }
+
+    const knownIds=new Set();
+    setTimeout(()=>{
+      console.log("🔥 Listening for live HITs...");
+      onSnapshot(collection(db,"hits"),(snapshot)=>{
+        const hits=[];const newIds=new Set();
+        snapshot.forEach(docSnap=>{
+          const d=docSnap.data();hits.push(d);
+          if(d.assignmentId)newIds.add(d.assignmentId);
+        });
+        const added=[...newIds].filter(id=>!knownIds.has(id));
+        if(added.length>0)playSound();
+        knownIds.clear();newIds.forEach(id=>knownIds.add(id));
+        renderTable(hits);
+      });
+    },1500);
+
+    // ============ PRESENCE COUNTER ============
+    const onlineEl=document.querySelector("#onlineCount");
+    const presenceCol=collection(db,"rooms/index/presence");
+    const sid=crypto.randomUUID?.()??Math.random().toString(36).slice(2);
+    const meRef=doc(presenceCol,sid);
+    setDoc(meRef,{since:serverTimestamp(),lastActive:serverTimestamp()},{merge:true});
+    const hb=setInterval(()=>setDoc(meRef,{lastActive:serverTimestamp()},{merge:true}),60000);
+    window.addEventListener("beforeunload",()=>{clearInterval(hb);deleteDoc(meRef);});
+    onSnapshot(presenceCol,(snap)=>{
+      const now=Date.now();let count=0;
+      snap.forEach(d=>{
+        const t=d.data()?.lastActive;
+        const ms=t?.toMillis?.()??(t?Date.parse(t):0);
+        if(ms&&(now-ms)<=90000)count++;
+      });
+      onlineEl.textContent=`${count} online`;
+    });
+
+    // ============ NOTIFICATIONS ============
+    const notifBtn=document.getElementById("enableNotif");
+    notifBtn.addEventListener("click",async()=>{
+      if("Notification" in window)await Notification.requestPermission();
+      notifBtn.style.display="none";
+    });
+    if("Notification" in window && Notification.permission==="granted")notifBtn.style.display="none";
+
+    // ============ SUPPORT TICKET ============
+    const modal=document.getElementById("ticketModal");
+    document.getElementById("ticketBtn").onclick=()=>modal.style.display="flex";
+    document.querySelector(".close").onclick=()=>modal.style.display="none";
+    window.onclick=e=>{if(e.target===modal)modal.style.display="none";};
+
+    // --- Audio Recorder ---
+    let recorder,chunks=[],audioBlob=null;
+    const recBtn=document.getElementById("recordAudio"),recStat=document.getElementById("recordStatus");
+    recBtn.onclick=async()=>{
+      if(!recorder||recorder.state==="inactive"){
         const stream=await navigator.mediaDevices.getUserMedia({audio:true});
         recorder=new MediaRecorder(stream);
         recorder.ondataavailable=e=>{if(e.data.size>0)chunks.push(e.data);};
@@ -119,11 +184,8 @@
       const desc=document.getElementById("issueDesc").value.trim();
       const files=document.getElementById("issueFiles").files;
       if(!userId||!desc){alert("Please enter your User ID and issue description.");return;}
-
-      const fileUrls=[];
-      for(const f of files){fileUrls.push(await uploadFile(f));}
+      const fileUrls=[];for(const f of files){fileUrls.push(await uploadFile(f));}
       const audioUrl=await uploadAudio();
-
       await addDoc(collection(db,"support_tickets"),{
         userId,
         subject:title||"(no title)",
@@ -133,11 +195,13 @@
         status:"open",
         createdAt:serverTimestamp()
       });
-
       alert(`✅ Ticket submitted successfully for ${userId}`);
       modal.style.display="none";
-      document.getElementById("userId").value=document.getElementById("issueTitle").value=document.getElementById("issueDesc").value="";
-      document.getElementById("issueFiles").value=null;audioBlob=null;recStat.textContent="(optional)";
+      document.getElementById("userId").value="";
+      document.getElementById("issueTitle").value="";
+      document.getElementById("issueDesc").value="";
+      document.getElementById("issueFiles").value=null;
+      audioBlob=null;recStat.textContent="(optional)";
     };
   </script>
 </body>
