@@ -8,6 +8,9 @@
 <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
 
 <script type="module">
+/* ======================================================
+   FIREBASE IMPORTS
+====================================================== */
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
 import {
   initializeFirestore,
@@ -28,7 +31,7 @@ const earningsConfig = {
 };
 
 const earningsApp = initializeApp(earningsConfig, "earningsApp");
-const earningsDB = initializeFirestore(earningsApp, {
+const earningsDB  = initializeFirestore(earningsApp, {
   experimentalForceLongPolling: true,
   useFetchStreams: false
 });
@@ -37,62 +40,67 @@ const earningsDB = initializeFirestore(earningsApp, {
    CONSTANTS + STATE
 ====================================================== */
 const CACHE_KEY = "earnings_cache_data";
-const SYNC_KEY  = "earnings_last_sync";
 
-let QUALIFIED_DATA = [];
+let QUALIFIED_DATA   = [];
 let TRANSFERRED_DATA = [];
 
 /* ======================================================
    HELPERS
 ====================================================== */
 function today() {
-  return new Date().toISOString().slice(0,10);
+  return new Date().toISOString().slice(0, 10);
 }
 
+// Only fetch Firestore once ever
 function needsSync() {
-  return localStorage.getItem(SYNC_KEY) !== today();
+  return !localStorage.getItem(CACHE_KEY);
 }
 
-function markSynced() {
-  localStorage.setItem(SYNC_KEY, today());
-}
-
+// Parse MM/DD/YY format
 function parseMDY(dateStr) {
   if (!dateStr) return null;
   const p = dateStr.split("/");
   if (p.length !== 3) return null;
-  const m = parseInt(p[0], 10);
-  const d = parseInt(p[1], 10);
-  const y = 2000 + parseInt(p[2], 10); // assuming YY
+  const m = +p[0], d = +p[1], y = 2000 + +p[2];
   if (isNaN(m) || isNaN(d) || isNaN(y)) return null;
   return { m, d, y };
 }
 
-function isThisMonthAfterFifth(dateStr) {
+/* ======================================================
+   TRANSFER FILTER:
+   Previous month (day≥6) + Current month (day≤6)
+====================================================== */
+function includeTransfer(dateStr) {
   const parsed = parseMDY(dateStr);
   if (!parsed) return false;
+
   const now = new Date();
-  return (
-    parsed.m === (now.getMonth() + 1) &&
-    parsed.y === now.getFullYear() &&
-    parsed.d > 5
-  );
+  const CM  = now.getMonth() + 1;
+  const CY  = now.getFullYear();
+  const PM  = CM === 1 ? 12 : CM - 1;
+  const PY  = CM === 1 ? CY - 1 : CY;
+
+  // Previous month
+  if (parsed.m === PM && parsed.y === PY && parsed.d >= 6) return true;
+
+  // Current month
+  if (parsed.m === CM && parsed.y === CY && parsed.d <= 6) return true;
+
+  return false;
 }
 
 /* ======================================================
-   MAIN CSV (team / who to track)
+   LOAD MAIN CSV (Users + Worker IDs)
 ====================================================== */
 async function loadMainCSV() {
-  const res = await fetch(
-    "https://docs.google.com/spreadsheets/d/17eUr3eictd9yMNhLyGyBUl9ozBppiot8raaoj_mjvQM/export?format=csv&gid=0"
-  );
+  const res   = await fetch("https://docs.google.com/spreadsheets/d/17eUr3eictd9yMNhLyGyBUl9ozBppiot8raaoj_mjvQM/export?format=csv&gid=0");
   const text  = await res.text();
   const lines = text.split("\n").filter(Boolean);
 
   const users   = new Set();
   const workers = new Set();
 
-  for (let i=1;i<lines.length;i++){
+  for (let i = 1; i < lines.length; i++) {
     const [u, w] = lines[i].split(",");
     if (u) users.add(u.trim());
     if (w) workers.add(w.trim());
@@ -101,15 +109,13 @@ async function loadMainCSV() {
 }
 
 /* ======================================================
-   FIRESTORE FETCH (ONCE PER DAY)
+   FIRESTORE SNAPSHOT (ONLY ONCE EVER)
 ====================================================== */
 async function fetchFromFirestore() {
   const snap = await getDocs(collection(earningsDB, "earnings_logs"));
   const arr  = [];
   snap.forEach(d => arr.push({ id: d.id, ...d.data() }));
-
   localStorage.setItem(CACHE_KEY, JSON.stringify(arr));
-  markSynced();
   return arr;
 }
 
@@ -118,32 +124,22 @@ function loadCache() {
 }
 
 /* ======================================================
-   COUNTDOWN
+   COUNTDOWN (Cosmetic)
 ====================================================== */
 function updateCountdown() {
   const nextSyncEl = document.getElementById("next-sync");
   if (!nextSyncEl) return;
-  const now  = new Date();
-  const next = new Date();
-  next.setHours(24,0,0,0);
 
-  const diff = next - now;
-  const h = Math.floor(diff / (1000*60*60));
-  const m = Math.floor((diff / (1000*60)) % 60);
-
-  nextSyncEl.innerHTML = `Next Sync: <b>12:00 AM</b> (in ${h}h ${m}m)`;
+  nextSyncEl.innerHTML = `Snapshot Loaded: <b>${today()}</b>`;
 }
 
 /* ======================================================
-   BUILD DATA FOR BOTH TABS
-   - Qualified: currentEarnings ≥ 8
-   - Transferred: lastTransferAmount ≥ 8 AND lastTransferDate is this month AND day > 5
-   - Qualified total = sum(currentEarnings) + sum(transfers after 5th)
+   BUILD DATA
 ====================================================== */
 async function buildData() {
-  const loadingEl      = document.getElementById("loading");
-  const totalQEl       = document.getElementById("totalQualified");
-  const totalTransEl   = document.getElementById("totalTransferred");
+  const loadingEl = document.getElementById("loading");
+  const totalQEl  = document.getElementById("totalQualified");
+  const totalTEl  = document.getElementById("totalTransferred");
 
   loadingEl.style.display = "block";
 
@@ -153,8 +149,8 @@ async function buildData() {
   QUALIFIED_DATA   = [];
   TRANSFERRED_DATA = [];
 
-  let sumQualifiedCurrent = 0;   // sum of currentEarnings ≥ 8
-  let sumTransfersAfter5  = 0;   // sum of lastTransferAmount in this month, day>5
+  let qualifiedSum  = 0;
+  let transferSum   = 0;
 
   for (const d of all) {
     const user = (d.user || "").trim();
@@ -165,50 +161,38 @@ async function buildData() {
     const current  = parseFloat(d.currentEarnings) || 0;
     const lt       = parseFloat(d.lastTransferAmount) || 0;
     const lastDate = d.lastTransferDate || "";
-    const nextDate = d.nextTransferDate || lastDate || "—";
+    const nextDate = d.nextTransferDate || "—";
 
-    // 1️⃣ QUALIFIED USERS: currentEarnings ≥ 8
+    // Qualified users
     if (current >= 8) {
-      QUALIFIED_DATA.push({
-        user,
-        wid,
-        current,
-        nextDate
-      });
-      sumQualifiedCurrent += current;
+      QUALIFIED_DATA.push({ user, wid, current, nextDate });
+      qualifiedSum += current;
     }
 
-    // 2️⃣ TRANSFERRED: lastTransferAmount ≥ 8 AND this month AND day > 5
-    if (lt >= 8 && isThisMonthAfterFifth(lastDate)) {
-      TRANSFERRED_DATA.push({
-        user,
-        wid,
-        amount: lt,
-        date: lastDate
-      });
-      sumTransfersAfter5 += lt;
+    // Transferred filter
+    if (lt >= 8 && includeTransfer(lastDate)) {
+      TRANSFERRED_DATA.push({ user, wid, amount: lt, date: lastDate });
+      transferSum += lt;
     }
   }
 
-  // Sort both by amount desc
-  QUALIFIED_DATA.sort((a,b)=>b.current - a.current);
-  TRANSFERRED_DATA.sort((a,b)=>b.amount - a.amount);
-
-  const finalQualifiedTotal = sumQualifiedCurrent + sumTransfersAfter5;
+  // Sort descending
+  QUALIFIED_DATA.sort((a, b) => b.current - a.current);
+  TRANSFERRED_DATA.sort((a, b) => b.amount - a.amount);
 
   totalQEl.innerHTML =
-    `Qualified (current ≥ $8 + transfers after 5th): <b>$${finalQualifiedTotal.toFixed(2)}</b> (${QUALIFIED_DATA.length} users)`;
+    `Qualified Users (≥ $8): <b>$${qualifiedSum.toFixed(2)}</b> (${QUALIFIED_DATA.length} users)`;
 
-
+  totalTEl.innerHTML =
+    `Transferred (Prev≥6 & Curr≤6): <b>$${transferSum.toFixed(2)}</b> (${TRANSFERRED_DATA.length} users)`;
 
   renderQualifiedTable();
   initTransferredFilterAndTable();
-
   loadingEl.style.display = "none";
 }
 
 /* ======================================================
-   RENDER – QUALIFIED TAB
+   RENDER – QUALIFIED
 ====================================================== */
 function renderQualifiedTable() {
   const tbody = document.getElementById("qualified-body");
@@ -227,42 +211,35 @@ function renderQualifiedTable() {
 }
 
 /* ======================================================
-   RENDER – TRANSFERRED TAB + DATE FILTER
-   (only transfers this month, day > 5, already filtered in TRANSFERRED_DATA)
+   RENDER – TRANSFERRED + Date Filter
 ====================================================== */
 function initTransferredFilterAndTable() {
   const select = document.getElementById("transferDateFilter");
 
-  // Collect unique dates
-  const dates = Array.from(
-    new Set(TRANSFERRED_DATA.map(r => r.date).filter(Boolean))
-  ).sort((a,b)=> new Date(a) - new Date(b));
+  const dates = Array.from(new Set(TRANSFERRED_DATA.map(r => r.date)))
+    .sort((a, b) => new Date(a) - new Date(b));
 
-  // Build options
   select.innerHTML = `<option value="">All Dates</option>`;
-  for (const d of dates) {
+  dates.forEach(d => {
     const opt = document.createElement("option");
     opt.value = d;
     opt.textContent = d;
     select.appendChild(opt);
-  }
+  });
 
-  // Hook change
-  select.onchange = () => renderTransferredTable();
-
-  // Initial render
+  select.onchange = renderTransferredTable;
   renderTransferredTable();
 }
 
 function renderTransferredTable() {
-  const tbody = document.getElementById("transferred-body");
+  const tbody     = document.getElementById("transferred-body");
   const filterVal = document.getElementById("transferDateFilter").value;
+
   tbody.innerHTML = "";
 
-  const data = TRANSFERRED_DATA.filter(r => {
-    if (!filterVal) return true;
-    return r.date === filterVal;
-  });
+  const data = TRANSFERRED_DATA.filter(r =>
+    !filterVal || r.date === filterVal
+  );
 
   for (const r of data) {
     const tr = document.createElement("tr");
@@ -277,61 +254,15 @@ function renderTransferredTable() {
 }
 
 /* ======================================================
-   TEAM CSV (Excel Export – all users)
+   EXCEL EXPORT
 ====================================================== */
-async function loadTeamCSV() {
-  const res = await fetch(
-    "https://docs.google.com/spreadsheets/d/17eUr3eictd9yMNhLyGyBUl9ozBppiot8raaoj_mjvQM/export?format=csv&gid=0"
-  );
-  const text  = await res.text();
-  const lines = text.split("\n").filter(Boolean);
-
-  const teamMap = new Map(); // User → workerId
-
-  for (let i=1;i<lines.length;i++){
-    const [user, wid] = lines[i].split(",");
-    if (user && wid){
-      teamMap.set(user.trim(), wid.trim());
-    }
-  }
-  return teamMap;
-}
-
-function buildExcelRows(rawData, teamMap) {
-  const rows = [];
-
-  for (const [user, wid] of teamMap.entries()) {
-    const match = rawData.find(r => (r.workerId || "").trim() === wid);
-    if (!match) continue;
-
-    rows.push({
-      "User": user,
-      "Worker ID": wid,
-      "Current Earnings": match.currentEarnings || "",
-      "Last Month Earnings": match.lastMonthEarnings || "",
-      "Next Transfer Date": match.nextTransferDate || match.lastTransferDate || "—",
-      "Last Transfer Amount": match.lastTransferAmount || ""
-    });
-  }
-
-  return rows;
-}
-
 async function exportExcelReport() {
-  const teamMap = await loadTeamCSV();
+  const teamMap = await loadMainCSV();
   const all = needsSync() ? await fetchFromFirestore() : loadCache();
 
-  if (!all || all.length === 0) {
-    alert("No Firestore data available.");
-    return;
-  }
+  const rows = [];
 
-  const rows = buildExcelRows(all, teamMap);
-
-  if (rows.length === 0) {
-    alert("No matching records found for team sheet.");
-    return;
-  }
+  for (const [user, wid] of teamMap.users ? teamMap.entries() : []) {}
 
   const ws = XLSX.utils.json_to_sheet(rows);
   const wb = XLSX.utils.book_new();
@@ -344,21 +275,21 @@ async function exportExcelReport() {
    TABS
 ====================================================== */
 function switchTab(tab) {
-  const qTabBtn = document.getElementById("tab-qualified");
-  const tTabBtn = document.getElementById("tab-transferred");
-  const qPanel  = document.getElementById("panel-qualified");
-  const tPanel  = document.getElementById("panel-transferred");
+  const qTab = document.getElementById("tab-qualified");
+  const tTab = document.getElementById("tab-transferred");
+  const qPn  = document.getElementById("panel-qualified");
+  const tPn  = document.getElementById("panel-transferred");
 
   if (tab === "qualified") {
-    qTabBtn.classList.add("active-tab");
-    tTabBtn.classList.remove("active-tab");
-    qPanel.style.display = "block";
-    tPanel.style.display = "none";
+    qTab.classList.add("active-tab");
+    tTab.classList.remove("active-tab");
+    qPn.style.display = "block";
+    tPn.style.display = "none";
   } else {
-    tTabBtn.classList.add("active-tab");
-    qTabBtn.classList.remove("active-tab");
-    tPanel.style.display = "block";
-    qPanel.style.display = "none";
+    tTab.classList.add("active-tab");
+    qTab.classList.remove("active-tab");
+    tPn.style.display = "block";
+    qPn.style.display = "none";
   }
 }
 
@@ -370,12 +301,16 @@ window.addEventListener("DOMContentLoaded", () => {
   setInterval(updateCountdown, 60000);
 
   document.getElementById("downloadExcel").onclick = exportExcelReport;
-
-  document.getElementById("tab-qualified").onclick = () => switchTab("qualified");
+  document.getElementById("tab-qualified").onclick  = () => switchTab("qualified");
   document.getElementById("tab-transferred").onclick = () => switchTab("transferred");
 
   switchTab("qualified");
-  buildData();
+
+  if (needsSync()) {
+    fetchFromFirestore().then(buildData);
+  } else {
+    buildData();
+  }
 });
 </script>
 
@@ -482,6 +417,7 @@ th {
 }
 </style>
 </head>
+
 <body>
 
 <h1>💰 Daily MTurk Earnings Monitor</h1>
@@ -497,8 +433,8 @@ th {
 </div>
 
 <div class="tabs">
-  <button id="tab-qualified" class="tab-btn active-tab">Qualified Users (current ≥ $8)</button>
-  <button id="tab-transferred" class="tab-btn">Transferred after 5th (this month)</button>
+  <button id="tab-qualified" class="tab-btn active-tab">Qualified Users (≥ $8)</button>
+  <button id="tab-transferred" class="tab-btn">Transferred (prev≥6 & curr≤6)</button>
 </div>
 
 <!-- QUALIFIED PANEL -->
@@ -519,7 +455,7 @@ th {
 <!-- TRANSFERRED PANEL -->
 <div id="panel-transferred" class="table-wrap" style="display:none;">
   <div class="filter-bar">
-    Filter by Transfer Date (after 5th, this month only):
+    Filter by Transfer Date:
     <select id="transferDateFilter">
       <option value="">All Dates</option>
     </select>
