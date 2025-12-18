@@ -142,7 +142,8 @@ function refreshTransfersCacheFromFirestore(allDocs, users, workers) {
   // 3) Daily sync: add new transfers
   for (const d of allDocs) {
     const user = cleanCell(d.user);
-    const wid  = cleanCell(d.workerId);
+    const wid  = cleanCell(d.workerId || d.id);  // ✅ fallback to document id
+
 
     // only from Qualified sheet
     if (!users.has(user) && !workers.has(wid)) continue;
@@ -262,7 +263,8 @@ async function buildData() {
   // Qualified: currentEarnings >= 8
   for (const d of allDocs) {
     const user = cleanCell(d.user);
-    const wid  = cleanCell(d.workerId);
+    const wid  = cleanCell(d.workerId || d.id);  // ✅ fallback to document id
+
 
     if (!users.has(user) && !workers.has(wid)) continue;
 
