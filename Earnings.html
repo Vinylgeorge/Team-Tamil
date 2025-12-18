@@ -376,7 +376,7 @@ function renderTransferredTable() {
 ====================================================== */
 async function loadTeamCSV() {
   const res = await fetch(
-    "https://docs.google.com/spreadsheets/d/17eUr3eictd9yMNhLyGyBUl9ozBppiot8raaoj_mjvQM/export?format=csv&gid=0"
+    "https://docs.google.com/spreadsheets/d/1W0fYDHy8nePZ-rkqZAX2DVOEufSHe7UJfB7OeC49b1o/export?format=csv&gid=0"
   );
   const text  = await res.text();
   const lines = text.split("\n").filter(Boolean);
