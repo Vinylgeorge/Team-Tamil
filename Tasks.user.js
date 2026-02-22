@@ -1,28 +1,28 @@
 // ==UserScript==
-// @name        MTurk Tasks
-// @namespace   Violentmonkey Scripts
-// @match       https://worker.mturk.com/projects/*/tasks/*
-// @grant       none
-// @version     1.6
+// @name         MTurk Tasks
+// @namespace    Violentmonkey Scripts
+// @match        https://worker.mturk.com/projects/*/tasks/*
+// @grant        none
+// @run-at       document-idle
+// @version      1.7
 // @updateURL    https://github.com/Vinylgeorge/Team-Tamil/raw/refs/heads/main/Tasks.user.js
 // @downloadURL  https://github.com/Vinylgeorge/Team-Tamil/raw/refs/heads/main/Tasks.user.js
 // ==/UserScript==
-
 (function () {
   'use strict';
 
   const s = document.createElement("script");
   s.type = "module";
   s.textContent = `
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
     import {
-      getFirestore,
+        getFirestore,
       setDoc,
       doc,
       Timestamp
     } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
-    // --- 🔥 Firebase Config ---
+      // --- 🔥 Firebase Config ---
     const firebaseConfig = {
   apiKey: "AIzaSyDIo2TPyxFs1BP_AaeQ6mMvqKXgQorQsS0",
   authDomain: "taskmonitor-7bc94.firebaseapp.com",
@@ -35,7 +35,7 @@
     const db = getFirestore(app);
 
     // --- 📋 Google Sheet User Mapping ---
-    const SHEET_CSV = "https://docs.google.com/spreadsheets/d/1ZKvsYmN24OD-WNpQ964_POXWQZ_X_v49aCMs1Hx1pAQ/export?format=csv&gid=0";
+    const SHEET_CSV = "https://docs.google.com/spreadsheets/d/17eUr3eictd9yMNhLyGyBUl9ozBppiot8raaoj_mjvQM/export?format=csv&gid=0";
     const workerToUser = {};
 
 
