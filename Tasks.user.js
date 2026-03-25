@@ -3,7 +3,7 @@
 // @namespace   Violentmonkey Scripts
 // @match       https://worker.mturk.com/projects/*/tasks/*
 // @grant       none
-// @version     1.8
+// @version     1.9
 // @updateURL    https://github.com/Vinylgeorge/Team-Tamil/raw/refs/heads/main/Tasks.user.js
 // @downloadURL  https://github.com/Vinylgeorge/Team-Tamil/raw/refs/heads/main/Tasks.user.js
 // ==/UserScript==
@@ -18,7 +18,7 @@
     import { getFirestore, setDoc, doc, addDoc, collection, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
      // --- 🔥 Firebase Config ---
-    onst firebaseConfig = {
+    const firebaseConfig = {
   apiKey: "AIzaSyDIo2TPyxFs1BP_AaeQ6mMvqKXgQorQsS0",
   authDomain: "taskmonitor-7bc94.firebaseapp.com",
   projectId: "taskmonitor-7bc94",
